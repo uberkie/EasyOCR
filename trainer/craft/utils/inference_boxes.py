@@ -33,9 +33,7 @@ def addRotatedShape(cx, cy, w, h, angle):
     p2x, p2y = rotatePoint(cx, cy, cx + w / 2, cy + h / 2, -angle)
     p3x, p3y = rotatePoint(cx, cy, cx - w / 2, cy + h / 2, -angle)
 
-    points = [[p0x, p0y], [p1x, p1y], [p2x, p2y], [p3x, p3y]]
-
-    return points
+    return [[p0x, p0y], [p1x, p1y], [p2x, p2y], [p3x, p3y]]
 
 def xml_parsing(xml):
     tree = elemTree.parse(xml)
@@ -44,9 +42,7 @@ def xml_parsing(xml):
     iter_element = tree.iter(tag="object")
 
     for element in iter_element:
-        annotation = {}  # Initialize the dict to store labels
-
-        annotation['name'] = element.find("name").text  # Save the name tag value
+        annotation = {'name': element.find("name").text}
 
         box_coords = element.iter(tag="robndbox")
 
@@ -79,15 +75,18 @@ def xml_parsing(xml):
 
 
     bounds = []
-    for i in range(len(annotations)):
-        box_info_dict = {"points": None, "text": None, "ignore": None}
+    for annotation_ in annotations:
+        box_info_dict = {
+            "text": None,
+            "ignore": None,
+            "points": np.array(annotation_['box_coodi']),
+        }
 
-        box_info_dict["points"] = np.array(annotations[i]['box_coodi'])
-        if annotations[i]['name'] == "dnc":
+        if annotation_['name'] == "dnc":
             box_info_dict["text"] = "###"
             box_info_dict["ignore"] = True
         else:
-            box_info_dict["text"] = annotations[i]['name']
+            box_info_dict["text"] = annotation_['name']
             box_info_dict["ignore"] = False
 
         bounds.append(box_info_dict)
@@ -152,12 +151,10 @@ def load_prescription_cleval_gt(dataFolder):
         word_bboxes = []
 
         for line in lines:
-            box_info_dict = {"points": None, "text": None, "ignore": None}
             box_info = line.strip().encode("utf-8").decode("utf-8-sig").split(",")
 
             box_points = [int(box_info[i]) for i in range(8)]
-            box_info_dict["points"] = np.array(box_points)
-
+            box_info_dict = {"text": None, "ignore": None, "points": np.array(box_points)}
             word_bboxes.append(box_info_dict)
         total_imgs_parsing_bboxes.append(word_bboxes)
 
@@ -193,10 +190,7 @@ def load_synthtext_gt(data_folder):
 
         single_img_bboxes = []
         for j in range(len(words)):
-            box_info_dict = {"points": None, "text": None, "ignore": None}
-            box_info_dict["points"] = wordbox[j]
-            box_info_dict["text"] = words[j]
-            box_info_dict["ignore"] = False
+            box_info_dict = {"points": wordbox[j], "text": words[j], "ignore": False}
             single_img_bboxes.append(box_info_dict)
 
         total_imgs_bboxes.append(single_img_bboxes)
@@ -226,8 +220,6 @@ def load_icdar2015_gt(dataFolder, isTraing=False):
         lines = open(gt_path, encoding="utf-8").readlines()
         single_img_bboxes = []
         for line in lines:
-            box_info_dict = {"points": None, "text": None, "ignore": None}
-
             box_info = line.strip().encode("utf-8").decode("utf-8-sig").split(",")
             box_points = [int(box_info[j]) for j in range(8)]
             word = box_info[8:]
@@ -236,13 +228,7 @@ def load_icdar2015_gt(dataFolder, isTraing=False):
             cv2.polylines(
                 image, [np.array(box_points).astype(np.int)], True, (0, 0, 255), 1
             )
-            box_info_dict["points"] = box_points
-            box_info_dict["text"] = word
-            if word == "###":
-                box_info_dict["ignore"] = True
-            else:
-                box_info_dict["ignore"] = False
-
+            box_info_dict = {"points": box_points, "text": word, "ignore": word == "###"}
             single_img_bboxes.append(box_info_dict)
         total_imgs_bboxes.append(single_img_bboxes)
         total_img_path.append(img_path)
@@ -251,14 +237,8 @@ def load_icdar2015_gt(dataFolder, isTraing=False):
 
 def load_icdar2013_gt(dataFolder, isTraing=False):
 
-    # choose test dataset
-    if isTraing:
-        img_folderName = "Challenge2_Test_Task12_Images"
-        gt_folderName = "Challenge2_Test_Task1_GT"
-    else:
-        img_folderName = "Challenge2_Test_Task12_Images"
-        gt_folderName = "Challenge2_Test_Task1_GT"
-
+    gt_folderName = "Challenge2_Test_Task1_GT"
+    img_folderName = "Challenge2_Test_Task12_Images"
     gt_folder_path = os.listdir(os.path.join(dataFolder, gt_folderName))
 
     total_imgs_bboxes = []
@@ -274,8 +254,6 @@ def load_icdar2013_gt(dataFolder, isTraing=False):
         lines = open(gt_path, encoding="utf-8").readlines()
         single_img_bboxes = []
         for line in lines:
-            box_info_dict = {"points": None, "text": None, "ignore": None}
-
             box_info = line.strip().encode("utf-8").decode("utf-8-sig").split(",")
             box = [int(box_info[j]) for j in range(4)]
             word = box_info[4:]
@@ -287,13 +265,7 @@ def load_icdar2013_gt(dataFolder, isTraing=False):
                 [box[0], box[3]],
             ]
 
-            box_info_dict["points"] = box
-            box_info_dict["text"] = word
-            if word == "###":
-                box_info_dict["ignore"] = True
-            else:
-                box_info_dict["ignore"] = False
-
+            box_info_dict = {"points": box, "text": word, "ignore": word == "###"}
             single_img_bboxes.append(box_info_dict)
 
         total_imgs_bboxes.append(single_img_bboxes)

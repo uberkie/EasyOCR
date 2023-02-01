@@ -9,7 +9,7 @@ from torchvision.transforms import InterpolationMode
 
 
 def rescale(img, bboxes, target_size=2240):
-    h, w = img.shape[0:2]
+    h, w = img.shape[:2]
     scale = target_size / max(h, w)
     img = cv2.resize(img, dsize=None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
     bboxes = bboxes * scale
@@ -71,16 +71,16 @@ def random_resize_crop(
     affinity_score = Image.fromarray(affinity_score)
     confidence_mask = Image.fromarray(confidence_mask)
 
-    if pre_crop_area != None:
-        i, j, h, w = pre_crop_area
-
-    else:
-        if random.random() < threshold:
-            i, j, h, w = RandomResizedCrop.get_params(image, scale=scale, ratio=ratio)
-        else:
-            i, j, h, w = RandomResizedCrop.get_params(
+    if pre_crop_area is None:
+        i, j, h, w = (
+            RandomResizedCrop.get_params(image, scale=scale, ratio=ratio)
+            if random.random() < threshold
+            else RandomResizedCrop.get_params(
                 image, scale=(1.0, 1.0), ratio=(1.0, 1.0)
             )
+        )
+    else:
+        i, j, h, w = pre_crop_area
 
     image = resized_crop(
         image, i, j, h, w, size=(size, size), interpolation=InterpolationMode.BICUBIC

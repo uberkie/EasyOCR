@@ -31,8 +31,7 @@ def word_segmentation(mat, separator_idx =  {'th': [1,2],'en': [3,4]}, separator
     start_idx = 0
     sep_lang = ''
     for sep_idx in separator_idx_list:
-        if sep_idx % 2 == 0: mode ='first'
-        else: mode ='last'
+        mode = 'first' if sep_idx % 2 == 0 else 'last'
         a = consecutive( np.argwhere(mat == sep_idx).flatten(), mode)
         new_sep = [ [item, sep_idx] for item in a]
         sep_list += new_sep
@@ -77,7 +76,7 @@ class BeamState:
         "length-normalise LM score"
         for (k, _) in self.entries.items():
             labelingLen = len(self.entries[k].labeling)
-            self.entries[k].prText = self.entries[k].prText ** (1.0 / (labelingLen if labelingLen else 1.0))
+            self.entries[k].prText = self.entries[k].prText**(1.0 / (labelingLen or 1.0))
 
     def sort(self):
         "return beam-labelings, sorted by probability"
@@ -92,19 +91,17 @@ class BeamState:
 
         for j, candidate in enumerate(sortedBeams):
             idx_list = candidate.labeling
-            text = ''
-            for i,l in enumerate(idx_list):
-                if l not in ignore_idx and (not (i > 0 and idx_list[i - 1] == idx_list[i])):
-                    text += classes[l]
-
+            text = ''.join(
+                classes[l]
+                for i, l in enumerate(idx_list)
+                if l not in ignore_idx
+                and (i <= 0 or idx_list[i - 1] != idx_list[i])
+            )
             if j == 0: best_text = text
             if text in dict_list:
                 #print('found text: ', text)
                 best_text = text
                 break
-            else:
-                pass
-                #print('not in dict: ', text)
         return best_text
 
 def applyLM(parentBeam, childBeam, classes, lm):
@@ -138,40 +135,23 @@ def fast_simplify_label(labeling, c, blankIdx=0):
 
     # Adding BlankIDX after Non-Blank IDX
     if labeling and c == blankIdx and labeling[-1] != blankIdx:
-        newLabeling = labeling + (c,)
+        return labeling + (c,)
 
-    # Case when a nonBlankChar is added after BlankChar |len(char) - 1
     elif labeling and c != blankIdx and labeling[-1] == blankIdx:
 
         # If Blank between same character do nothing | As done by Simplify label
-        if labeling[-2] == c:
-            newLabeling = labeling + (c,)
+        return labeling + (c,) if labeling[-2] == c else labeling[:-1] + (c,)
+    elif labeling and c == blankIdx:
+        return labeling
 
-        # if blank between different character, remove it | As done by Simplify Label
-        else:
-            newLabeling = labeling[:-1] + (c,)
-
-    # if consecutive blanks : Keep the original label
-    elif labeling and c == blankIdx and labeling[-1] == blankIdx:
-        newLabeling = labeling
-
-    # if empty beam & first index is blank
     elif not labeling and c == blankIdx:
-        newLabeling = labeling
+        return labeling
 
-    # if empty beam & first index is non-blank
-    elif not labeling and c != blankIdx:
-        newLabeling = labeling + (c,)
+    elif not labeling:
+        return labeling + (c,)
 
-    elif labeling and c != blankIdx:
-        newLabeling = labeling + (c,)
-
-    # Cases that might still require simplyfying
     else:
-        newLabeling = labeling + (c,)
-        newLabeling = simplify_label(newLabeling, blankIdx)
-
-    return newLabeling
+        return labeling + (c,)
 
 def addBeam(beamState, labeling):
     "add beam if it does not yet exist"
@@ -193,7 +173,7 @@ def ctcBeamSearch(mat, classes, ignore_idx, lm, beamWidth=25, dict_list = []):
     for t in range(maxT):
         curr = BeamState()
         # get beam-labelings of best beams
-        bestLabelings = last.sort()[0:beamWidth]
+        bestLabelings = last.sort()[:beamWidth]
         # go over best beams
         for labeling in bestLabelings:
             # probability of paths ending with a non-blank
@@ -258,16 +238,15 @@ def ctcBeamSearch(mat, classes, ignore_idx, lm, beamWidth=25, dict_list = []):
     # normalise LM scores according to beam-labeling-length
     last.norm()
 
-    if dict_list == []:
-        bestLabeling = last.sort()[0] # get most probable labeling
-        res = ''
-        for i,l in enumerate(bestLabeling):
-            # removing repeated characters and blank.
-            if l not in ignore_idx and (not (i > 0 and bestLabeling[i - 1] == bestLabeling[i])):
-                res += classes[l]
-    else:
-        res = last.wordsearch(classes, ignore_idx, 20, dict_list)
-    return res
+    if dict_list != []:
+        return last.wordsearch(classes, ignore_idx, 20, dict_list)
+    bestLabeling = last.sort()[0] # get most probable labeling
+    return ''.join(
+        classes[l]
+        for i, l in enumerate(bestLabeling)
+        if l not in ignore_idx
+        and (i <= 0 or bestLabeling[i - 1] != bestLabeling[i])
+    )
 
 
 class CTCLabelConverter(object):
@@ -366,18 +345,14 @@ class CTCLabelConverter(object):
                 for j, list_idx in enumerate(group):
                     matrix = mat[i, list_idx,:]
                     t = ctcBeamSearch(matrix, self.character, self.ignore_idx, None,\
-                                      beamWidth=beamWidth, dict_list=self.dict_list)
-                    if j == 0: string += t
-                    else: string += ' '+t
-
-            # with separators
+                                          beamWidth=beamWidth, dict_list=self.dict_list)
+                    string += t if j == 0 else f' {t}'
             else:
                 words = word_segmentation(argmax[i])
 
                 for word in words:
                     matrix = mat[i, word[1][0]:word[1][1]+1,:]
-                    if word[0] == '': dict_list = []
-                    else: dict_list = self.dict_list[word[0]]
+                    dict_list = [] if word[0] == '' else self.dict_list[word[0]]
                     t = ctcBeamSearch(matrix, self.character, self.ignore_idx, None, beamWidth=beamWidth, dict_list=dict_list)
                     string += t
             texts.append(string)
@@ -401,9 +376,7 @@ def four_point_transform(image, rect):
 
     # compute the perspective transform matrix and then apply it
     M = cv2.getPerspectiveTransform(rect, dst)
-    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
-
-    return warped
+    return cv2.warpPerspective(image, M, (maxWidth, maxHeight))
 
 def group_text_box(polys, slope_ths = 0.1, ycenter_ths = 0.5, height_ths = 0.5, width_ths = 1.0, add_margin = 0.05, sort_output = True):
     # poly top-left, top-right, low-right, low-left
@@ -448,17 +421,15 @@ def group_text_box(polys, slope_ths = 0.1, ycenter_ths = 0.5, height_ths = 0.5, 
             b_height = [poly[5]]
             b_ycenter = [poly[4]]
             new_box.append(poly)
+        elif abs(np.mean(b_ycenter) - poly[4]) < ycenter_ths*np.mean(b_height):
+            b_height.append(poly[5])
+            b_ycenter.append(poly[4])
+            new_box.append(poly)
         else:
-            # comparable height and comparable y_center level up to ths*height
-            if abs(np.mean(b_ycenter) - poly[4]) < ycenter_ths*np.mean(b_height):
-                b_height.append(poly[5])
-                b_ycenter.append(poly[4])
-                new_box.append(poly)
-            else:
-                b_height = [poly[5]]
-                b_ycenter = [poly[4]]
-                combined_list.append(new_box)
-                new_box = [poly]
+            b_height = [poly[5]]
+            b_ycenter = [poly[4]]
+            combined_list.append(new_box)
+            new_box = [poly]
     combined_list.append(new_box)
 
     # merge list use sort again
@@ -476,16 +447,15 @@ def group_text_box(polys, slope_ths = 0.1, ycenter_ths = 0.5, height_ths = 0.5, 
                     b_height = [box[5]]
                     x_max = box[1]
                     new_box.append(box)
+                elif (abs(np.mean(b_height) - box[5]) < height_ths*np.mean(b_height)) and ((box[0]-x_max) < width_ths *(box[3]-box[2])): # merge boxes
+                    b_height.append(box[5])
+                    x_max = box[1]
+                    new_box.append(box)
                 else:
-                    if (abs(np.mean(b_height) - box[5]) < height_ths*np.mean(b_height)) and ((box[0]-x_max) < width_ths *(box[3]-box[2])): # merge boxes
-                        b_height.append(box[5])
-                        x_max = box[1]
-                        new_box.append(box)
-                    else:
-                        b_height = [box[5]]
-                        x_max = box[1]
-                        merged_box.append(new_box)
-                        new_box = [box]
+                    b_height = [box[5]]
+                    x_max = box[1]
+                    merged_box.append(new_box)
+                    new_box = [box]
             if len(new_box) >0: merged_box.append(new_box)
 
             for mbox in merged_box:

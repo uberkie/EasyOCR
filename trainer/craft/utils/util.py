@@ -9,10 +9,7 @@ from utils import craft_utils
 
 
 def copyStateDict(state_dict):
-    if list(state_dict.keys())[0].startswith("module"):
-        start_idx = 1
-    else:
-        start_idx = 0
+    start_idx = 1 if list(state_dict.keys())[0].startswith("module") else 0
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
         name = ".".join(k.split(".")[start_idx:])
@@ -64,7 +61,7 @@ def saveInput(
     if type(imagename) is not str:
         imagename = imagename[0].split("/")[-1][:-4]
 
-    outpath = vis_dir + f"/{imagename}_input.jpg"
+    outpath = f"{vis_dir}/{imagename}_input.jpg"
     if not os.path.exists(os.path.dirname(outpath)):
         os.makedirs(os.path.dirname(outpath), exist_ok=True)
     cv2.imwrite(outpath, output)
@@ -121,7 +118,7 @@ def saveImage(
         imagename = imagename[0].split("/")[-1][:-4]
 
     output = np.concatenate([output_image, heat_map, confidence_mask_gray], axis=1)
-    outpath = vis_dir + f"/{imagename}.jpg"
+    outpath = f"{vis_dir}/{imagename}.jpg"
     if not os.path.exists(os.path.dirname(outpath)):
         os.makedirs(os.path.dirname(outpath), exist_ok=True)
 

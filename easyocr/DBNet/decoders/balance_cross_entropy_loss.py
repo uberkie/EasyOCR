@@ -49,8 +49,6 @@ class BalanceCrossEntropyLoss(nn.Module):
         negative_loss, _ = torch.topk(negative_loss.view(-1), negative_count)
 
         balance_loss = (positive_loss.sum() + negative_loss.sum()) /\
-            (positive_count + negative_count + self.eps)
+                (positive_count + negative_count + self.eps)
 
-        if return_origin:
-            return balance_loss, loss
-        return balance_loss
+        return (balance_loss, loss) if return_origin else balance_loss

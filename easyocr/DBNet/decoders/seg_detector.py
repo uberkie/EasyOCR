@@ -98,21 +98,20 @@ class SegDetector(nn.Module):
     def _init_upsample(self,
                        in_channels, out_channels,
                        smooth=False, bias=False):
-        if smooth:
-            inter_out_channels = out_channels
-            if out_channels == 1:
-                inter_out_channels = in_channels
-            module_list = [
-                    nn.Upsample(scale_factor=2, mode='nearest'),
-                    nn.Conv2d(in_channels, inter_out_channels, 3, 1, 1, bias=bias)]
-            if out_channels == 1:
-                module_list.append(
-                    nn.Conv2d(in_channels, out_channels,
-                              kernel_size=1, stride=1, padding=1, bias=True))
-
-            return nn.Sequential(module_list)
-        else:
+        if not smooth:
             return nn.ConvTranspose2d(in_channels, out_channels, 2, 2)
+        inter_out_channels = out_channels
+        if out_channels == 1:
+            inter_out_channels = in_channels
+        module_list = [
+                nn.Upsample(scale_factor=2, mode='nearest'),
+                nn.Conv2d(in_channels, inter_out_channels, 3, 1, 1, bias=bias)]
+        if out_channels == 1:
+            module_list.append(
+                nn.Conv2d(in_channels, out_channels,
+                          kernel_size=1, stride=1, padding=1, bias=True))
+
+        return nn.Sequential(module_list)
 
     def forward(self, features, gt=None, masks=None, training=False):
         c2, c3, c4, c5 = features

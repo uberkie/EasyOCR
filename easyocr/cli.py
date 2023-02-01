@@ -234,8 +234,7 @@ def parse_args():
         help="output format.",
     )
 
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def main():

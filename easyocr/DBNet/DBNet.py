@@ -65,7 +65,7 @@ class DBNet:
         None.
         '''
         self.device = device
-        
+
         config_path = os.path.join(os.path.dirname(__file__), "configs", "DBNet_inference.yaml")
         with open(config_path, 'r') as fid:
             self.configs = yaml.safe_load(fid)
@@ -76,7 +76,9 @@ class DBNet:
         if backbone in self.configs.keys():
             self.backbone = backbone
         else:
-            raise ValueError("Invalid backbone. Current support backbone are {}.".format(",".join(self.configs.keys())))
+            raise ValueError(
+                f'Invalid backbone. Current support backbone are {",".join(self.configs.keys())}.'
+            )
 
         if weight_dir is not None:
             self.weight_dir = weight_dir
@@ -90,12 +92,12 @@ class DBNet:
             else:
                 weight_path = os.path.join(self.weight_dir, weight_name)
                 error_message = "A weight with a name {} is not found in DBNet_inference.yaml and cannot be find file: {}."
-                
+
             if not os.path.isfile(weight_path):
                 raise FileNotFoundError(error_message.format(weight_name, weight_path))
-                
+
             self.initialize_model(self.configs[backbone]['model'], weight_path)
-        
+
         else:
             self.model = None
 
@@ -128,11 +130,8 @@ class DBNet:
         for key,value in configs.items():
             if key == 'class':
                 configs.update({key: ".".join(prefices + value.split("."))})
-            else:
-                if isinstance(value, dict):
-                    value = self.set_relative_import_path(value, dynamic_import_relative_path)
-                else:
-                    pass
+            elif isinstance(value, dict):
+                value = self.set_relative_import_path(value, dynamic_import_relative_path)
         return configs
 
     def load_weight(self, weight_path):
@@ -219,7 +218,7 @@ class DBNet:
             if os.path.isfile(image):
                 image = cv2.imread(image, cv2.IMREAD_COLOR).astype('float32')
             else:
-                raise FileNotFoundError("Cannot find {}".format(image))
+                raise FileNotFoundError(f"Cannot find {image}")
         elif isinstance(image, np.ndarray):
             image = image.astype('float32')
         elif isinstance(image, PIL.Image.Image):
@@ -491,14 +490,14 @@ class DBNet:
         height, width = bitmap.shape
         boxes = []
         scores = []
-    
+
         contours, _ = cv2.findContours(
             (bitmap*255).astype(np.uint8),
             cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-        
+
         if max_candidates > 0:
             contours = contours[:max_candidates]
-        
+
         for contour in contours:
             epsilon = 0.002 * cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, epsilon, True)
@@ -509,24 +508,23 @@ class DBNet:
             score = self.box_score_fast(hmap, points.reshape(-1, 2))
             if score < bbox_min_score:
                 continue
-            
-            if points.shape[0] > 2:
-                box = self.unclip(points, unclip_ratio=2.0)
-                if len(box) > 1:
-                    continue
 
-            else:
+            if points.shape[0] <= 2:
+                continue
+
+            box = self.unclip(points, unclip_ratio=2.0)
+            if len(box) > 1:
                 continue
 
             box = box.reshape(-1, 2)
             _, sside = self.get_mini_boxes(box.reshape((-1, 1, 2)))
             if sside < bbox_min_size + 2:
                 continue
-    
+
             if not isinstance(dest_width, int):
                 dest_width = dest_width.item()
                 dest_height = dest_height.item()
-            
+
             box[:, 0] = np.clip(
                 np.round(box[:, 0] / width * dest_width), 0, dest_width)
             box[:, 1] = np.clip(
@@ -625,9 +623,7 @@ class DBNet:
         distance = poly.area * unclip_ratio / poly.length
         offset = pyclipper.PyclipperOffset()
         offset.AddPath(box, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-        expanded = np.array(offset.Execute(distance))
-
-        return expanded
+        return np.array(offset.Execute(distance))
     
     def get_mini_boxes(self, contour):
         bounding_box = cv2.minAreaRect(contour)
@@ -759,8 +755,5 @@ class DBNet:
                                                        bbox_min_size = bbox_min_size, 
                                                        max_candidates = max_candidates, 
                                                        as_polygon=as_polygon) 
-        
-        if return_scores:
-            return batch_boxes, batch_scores
-        else:
-            return batch_boxes
+
+        return (batch_boxes, batch_scores) if return_scores else batch_boxes

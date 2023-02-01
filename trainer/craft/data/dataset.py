@@ -55,7 +55,7 @@ class CraftBaseDataset(Dataset):
         self.sample = sample
         if self.sample != -1:
             random.seed(0)
-            self.idx = random.sample(range(0, len(self.img_names)), self.sample)
+            self.idx = random.sample(range(len(self.img_names)), self.sample)
 
         self.pre_crop_area = []
 
@@ -85,11 +85,7 @@ class CraftBaseDataset(Dataset):
                 )
             elif self.aug.random_crop.version == "random_resize_crop":
 
-                if len(self.pre_crop_area) > 0:
-                    pre_crop_area = self.pre_crop_area
-                else:
-                    pre_crop_area = None
-
+                pre_crop_area = self.pre_crop_area if len(self.pre_crop_area) > 0 else None
                 augment_targets = random_resize_crop(
                     augment_targets,
                     self.aug.random_crop.scale,
@@ -130,10 +126,7 @@ class CraftBaseDataset(Dataset):
         )
 
     def __len__(self):
-        if self.sample != -1:
-            return len(self.idx)
-        else:
-            return len(self.img_names)
+        return len(self.idx) if self.sample != -1 else len(self.img_names)
 
     def __getitem__(self, index):
         if self.sample != -1:
@@ -242,11 +235,7 @@ class SynthTextDataSet(CraftBaseDataset):
         img_names = gt["imnames"][0]
         img_words = gt["txt"][0]
 
-        if bbox == "char":
-            img_bbox = gt["charBB"][0]
-        else:
-            img_bbox = gt["wordBB"][0]  # word bbox needed for test
-
+        img_bbox = gt["charBB"][0] if bbox == "char" else gt["wordBB"][0]
         return img_names, img_bbox, img_words
 
     def dilate_img_to_output_size(self, image, char_bbox):
@@ -282,8 +271,8 @@ class SynthTextDataSet(CraftBaseDataset):
         word_level_char_bbox = []
         char_idx = 0
 
-        for i in range(len(words)):
-            length_of_word = len(words[i])
+        for word_ in words:
+            length_of_word = len(word_)
             word_bbox = all_char_bbox[char_idx : char_idx + length_of_word]
             assert len(word_bbox) == length_of_word
             char_idx += length_of_word
@@ -392,7 +381,7 @@ class CustomDataset(CraftBaseDataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         img_gt_box_path = os.path.join(
-            self.img_gt_box_dir, "gt_%s.txt" % os.path.splitext(img_name)[0]
+            self.img_gt_box_dir, f"gt_{os.path.splitext(img_name)[0]}.txt"
         )
         word_bboxes, words = self.load_img_gt_box(
             img_gt_box_path
@@ -495,7 +484,7 @@ class CustomDataset(CraftBaseDataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         img_gt_box_path = os.path.join(
-            self.img_gt_box_dir, "gt_%s.txt" % os.path.splitext(img_name)[0]
+            self.img_gt_box_dir, f"gt_{os.path.splitext(img_name)[0]}.txt"
         )
         word_bboxes, words = self.load_img_gt_box(img_gt_box_path)
         image, word_bboxes = rescale(image, word_bboxes)
@@ -526,12 +515,9 @@ class CustomDataset(CraftBaseDataset):
         affinity_score = affinity_score.astype(np.float32) / 255
         confidence_mask = confidence_mask.astype(np.float32) / 255
 
-        # NOTE : Even though word_level_char_bbox is not necessary, align bbox format with make_gt_score()
-        word_level_char_bbox = []
-
-        for i in range(len(word_bboxes)):
-            word_level_char_bbox.append(np.expand_dims(word_bboxes[i], 0))
-
+        word_level_char_bbox = [
+            np.expand_dims(word_bboxes[i], 0) for i in range(len(word_bboxes))
+        ]
         return (
             image,
             region_score,

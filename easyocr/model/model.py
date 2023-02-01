@@ -30,6 +30,4 @@ class Model(nn.Module):
         contextual_feature = self.SequenceModeling(visual_feature)
 
         """ Prediction stage """
-        prediction = self.Prediction(contextual_feature.contiguous())
-
-        return prediction
+        return self.Prediction(contextual_feature.contiguous())

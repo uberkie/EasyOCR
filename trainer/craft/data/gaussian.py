@@ -44,15 +44,13 @@ class GaussianBuilder(object):
     def generate_circle_mask(self):
 
         zero_arr = np.zeros((self.init_size, self.init_size), np.float32)
-        circle_mask = cv2.circle(
+        return cv2.circle(
             img=zero_arr,
             center=(self.init_size // 2, self.init_size // 2),
             radius=self.init_size // 2,
             color=1,
             thickness=-1,
         )
-
-        return circle_mask
 
     def four_point_transform(self, bbox):
         """
@@ -125,11 +123,9 @@ class GaussianBuilder(object):
             ] = high_value_score
 
         except Exception as e:
-            print("Error : {}".format(e))
+            print(f"Error : {e}")
             print(
-                "On generating {} map, strange box came out. (width: {}, height: {})".format(
-                    map_type, width, height
-                )
+                f"On generating {map_type} map, strange box came out. (width: {width}, height: {height})"
             )
 
         return score_map
@@ -142,12 +138,11 @@ class GaussianBuilder(object):
             br = (bbox_2[1:3].sum(0) + center_2) / 3
             bl = (bbox_2[0] + bbox_2[-1] + center_2) / 3
         else:
-            tl = (bbox_1[0:2].sum(0) + center_1) / 3
-            tr = (bbox_2[0:2].sum(0) + center_2) / 3
+            tl = (bbox_1[:2].sum(0) + center_1) / 3
+            tr = (bbox_2[:2].sum(0) + center_2) / 3
             br = (bbox_2[2:4].sum(0) + center_2) / 3
             bl = (bbox_1[2:4].sum(0) + center_1) / 3
-        affinity_box = np.array([tl, tr, br, bl]).astype(np.float32)
-        return affinity_box
+        return np.array([tl, tr, br, bl]).astype(np.float32)
 
     def generate_region(
         self, img_h, img_w, word_level_char_bbox, horizontal_text_bools
@@ -187,6 +182,6 @@ class GaussianBuilder(object):
                 )
                 all_affinity_bbox.append(np.expand_dims(affinity_bbox, axis=0))
 
-        if len(all_affinity_bbox) > 0:
+        if all_affinity_bbox:
             all_affinity_bbox = np.concatenate(all_affinity_bbox, axis=0)
         return affinity_map, all_affinity_bbox

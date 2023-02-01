@@ -47,19 +47,19 @@ class Trainer(object):
             sample=self.config.train.data.syn_sample,
         )
 
-        syn_loader = torch.utils.data.DataLoader(
+        return torch.utils.data.DataLoader(
             dataset,
-            batch_size=self.config.train.batch_size // self.config.train.synth_ratio,
+            batch_size=self.config.train.batch_size
+            // self.config.train.synth_ratio,
             shuffle=False,
             num_workers=self.config.train.num_workers,
             drop_last=True,
             pin_memory=True,
         )
-        return syn_loader
 
     def get_custom_dataset(self):
 
-        custom_dataset = CustomDataset(
+        return CustomDataset(
             output_size=self.config.train.data.output_size,
             data_dir=self.config.data_root_dir,
             saved_gt_dir=None,
@@ -78,17 +78,13 @@ class Trainer(object):
             do_not_care_label=self.config.train.data.do_not_care_label,
         )
 
-        return custom_dataset
-
     def get_load_param(self, gpu):
 
         if self.config.train.ckpt_path is not None:
             map_location = "cuda:%d" % gpu
-            param = torch.load(self.config.train.ckpt_path, map_location=map_location)
+            return torch.load(self.config.train.ckpt_path, map_location=map_location)
         else:
-            param = None
-
-        return param
+            return None
 
     def adjust_learning_rate(self, optimizer, gamma, step, lr):
         lr = lr * (gamma ** step)
@@ -109,7 +105,7 @@ class Trainer(object):
         test_config = DotDict(self.config.test[dataset])
 
         val_result_dir = os.path.join(
-            self.config.results_dir, "{}/{}".format(dataset + "_iou", str(train_step))
+            self.config.results_dir, f"{dataset}_iou/{str(train_step)}"
         )
 
         evaluator = DetectionIoUEvaluator()
@@ -127,11 +123,9 @@ class Trainer(object):
         if self.gpu == 0 and self.config.wandb_opt:
             wandb.log(
                 {
-                    "{} iou Recall".format(dataset): np.round(metrics["recall"], 3),
-                    "{} iou Precision".format(dataset): np.round(
-                        metrics["precision"], 3
-                    ),
-                    "{} iou F1-score".format(dataset): np.round(metrics["hmean"], 3),
+                    f"{dataset} iou Recall": np.round(metrics["recall"], 3),
+                    f"{dataset} iou Precision": np.round(metrics["precision"], 3),
+                    f"{dataset} iou F1-score": np.round(metrics["hmean"], 3),
                 }
             )
 
@@ -226,7 +220,6 @@ class Trainer(object):
         # TRAIN -------------------------------------------------------------------------------------------------------#
         train_step = self.config.train.st_iter
         whole_training_step = self.config.train.end_iter
-        update_lr_rate_step = 0
         training_lr = self.config.train.lr
         loss_value = 0
         batch_time = 0
@@ -235,16 +228,9 @@ class Trainer(object):
         print(
             "================================ Train start ================================"
         )
+        update_lr_rate_step = 0
         while train_step < whole_training_step:
-            for (
-                    index,
-                    (
-                            images,
-                            region_scores,
-                            affinity_scores,
-                            confidence_masks,
-                    ),
-            ) in enumerate(trn_real_loader):
+            for index, (images, region_scores, affinity_scores, confidence_masks) in enumerate(trn_real_loader):
                 craft.train()
                 if train_step > 0 and train_step % self.config.train.lr_decay == 0:
                     update_lr_rate_step += 1
@@ -363,21 +349,11 @@ class Trainer(object):
                         "craft": craft.state_dict(),
                         "optimizer": optimizer.state_dict(),
                     }
-                    save_param_path = (
-                            self.config.results_dir
-                            + "/CRAFT_clr_"
-                            + repr(train_step)
-                            + ".pth"
-                    )
+                    save_param_path = f"{self.config.results_dir}/CRAFT_clr_{repr(train_step)}.pth"
 
                     if self.config.train.amp:
                         save_param_dic["scaler"] = scaler.state_dict()
-                        save_param_path = (
-                                self.config.results_dir
-                                + "/CRAFT_clr_amp_"
-                                + repr(train_step)
-                                + ".pth"
-                        )
+                        save_param_path = f"{self.config.results_dir}/CRAFT_clr_amp_{repr(train_step)}.pth"
 
                     torch.save(save_param_dic, save_param_path)
 
@@ -404,17 +380,12 @@ class Trainer(object):
             "craft": craft.state_dict(),
             "optimizer": optimizer.state_dict(),
         }
-        save_param_path = (
-                self.config.results_dir + "/CRAFT_clr_" + repr(train_step) + ".pth"
-        )
+        save_param_path = f"{self.config.results_dir}/CRAFT_clr_{repr(train_step)}.pth"
 
         if self.config.train.amp:
             save_param_dic["scaler"] = scaler.state_dict()
             save_param_path = (
-                    self.config.results_dir
-                    + "/CRAFT_clr_amp_"
-                    + repr(train_step)
-                    + ".pth"
+                f"{self.config.results_dir}/CRAFT_clr_amp_{repr(train_step)}.pth"
             )
         torch.save(save_param_dic, save_param_path)
 
@@ -450,15 +421,10 @@ def main():
 
     # Duplicate yaml file to result_dir
     shutil.copy(
-        "config/" + args.yaml + ".yaml", os.path.join(res_dir, args.yaml) + ".yaml"
+        f"config/{args.yaml}.yaml", f"{os.path.join(res_dir, args.yaml)}.yaml"
     )
 
-    if config["mode"] == "weak_supervision":
-        mode = "weak_supervision"
-    else:
-        mode = None
-
-
+    mode = "weak_supervision" if config["mode"] == "weak_supervision" else None
     # Apply config to wandb
     if config["wandb_opt"]:
         wandb.init(project="craft-stage2", entity="user_name", name=exp_name)

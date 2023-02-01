@@ -24,7 +24,7 @@ class Builder(Configurable):
 
     @property
     def model_name(self):
-        return self.model + '-' + getattr(structure_model, self.model).model_name(self.model_args)
+        return f'{self.model}-{getattr(structure_model, self.model).model_name(self.model_args)}'
 
     def build(self, device, distributed=False, local_rank: int = 0):
         Model = getattr(structure_model, self.model)

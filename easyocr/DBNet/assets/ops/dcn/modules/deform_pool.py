@@ -73,10 +73,6 @@ class DeformRoIPoolingPack(DeformRoIPooling):
         assert data.size(1) == self.out_channels
         if self.no_trans:
             offset = data.new_empty(0)
-            return deform_roi_pooling(
-                data, rois, offset, self.spatial_scale, self.out_size,
-                self.out_channels, self.no_trans, self.group_size,
-                self.part_size, self.sample_per_part, self.trans_std)
         else:
             n = rois.shape[0]
             offset = data.new_empty(0)
@@ -86,10 +82,11 @@ class DeformRoIPoolingPack(DeformRoIPooling):
                                    self.sample_per_part, self.trans_std)
             offset = self.offset_fc(x.view(n, -1))
             offset = offset.view(n, 2, self.out_size, self.out_size)
-            return deform_roi_pooling(
-                data, rois, offset, self.spatial_scale, self.out_size,
-                self.out_channels, self.no_trans, self.group_size,
-                self.part_size, self.sample_per_part, self.trans_std)
+
+        return deform_roi_pooling(
+            data, rois, offset, self.spatial_scale, self.out_size,
+            self.out_channels, self.no_trans, self.group_size,
+            self.part_size, self.sample_per_part, self.trans_std)
 
 
 class ModulatedDeformRoIPoolingPack(DeformRoIPooling):

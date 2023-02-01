@@ -64,10 +64,9 @@ class Trainer(object):
     def get_load_param(self, gpu):
         if self.config.train.ckpt_path is not None:
             map_location = {"cuda:%d" % 0: "cuda:%d" % gpu}
-            param = torch.load(self.config.train.ckpt_path, map_location=map_location)
+            return torch.load(self.config.train.ckpt_path, map_location=map_location)
         else:
-            param = None
-        return param
+            return None
 
     def adjust_learning_rate(self, optimizer, gamma, step, lr):
         lr = lr * (gamma ** step)
@@ -88,7 +87,7 @@ class Trainer(object):
         test_config = DotDict(self.config.test[dataset])
 
         val_result_dir = os.path.join(
-            self.config.results_dir, "{}/{}".format(dataset + "_iou", str(train_step))
+            self.config.results_dir, f"{dataset}_iou/{str(train_step)}"
         )
 
         evaluator = DetectionIoUEvaluator()
@@ -106,11 +105,9 @@ class Trainer(object):
         if self.gpu == 0 and self.config.wandb_opt:
             wandb.log(
                 {
-                    "{} IoU Recall".format(dataset): np.round(metrics["recall"], 3),
-                    "{} IoU Precision".format(dataset): np.round(
-                        metrics["precision"], 3
-                    ),
-                    "{} IoU F1-score".format(dataset): np.round(metrics["hmean"], 3),
+                    f"{dataset} IoU Recall": np.round(metrics["recall"], 3),
+                    f"{dataset} IoU Precision": np.round(metrics["precision"], 3),
+                    f"{dataset} IoU F1-score": np.round(metrics["hmean"], 3),
                 }
             )
 
@@ -166,19 +163,16 @@ class Trainer(object):
         # TRAIN -------------------------------------------------------------------------------------------------------#
         train_step = self.config.train.st_iter
         whole_training_step = self.config.train.end_iter
-        update_lr_rate_step = 0
         training_lr = self.config.train.lr
         loss_value = 0
         batch_time = 0
         epoch = 0
         start_time = time.time()
 
+        update_lr_rate_step = 0
         while train_step < whole_training_step:
             self.trn_sampler.set_epoch(train_step)
-            for (
-                index,
-                (image, region_image, affinity_image, confidence_mask,),
-            ) in enumerate(trn_loader):
+            for index, (image, region_image, affinity_image, confidence_mask) in enumerate(trn_loader):
                 craft.train()
                 if train_step > 0 and train_step % self.config.train.lr_decay == 0:
                     update_lr_rate_step += 1
@@ -276,22 +270,12 @@ class Trainer(object):
                         "craft": craft.state_dict(),
                         "optimizer": optimizer.state_dict(),
                     }
-                    save_param_path = (
-                        self.config.results_dir
-                        + "/CRAFT_clr_"
-                        + repr(train_step)
-                        + ".pth"
-                    )
+                    save_param_path = f"{self.config.results_dir}/CRAFT_clr_{repr(train_step)}.pth"
 
                     if self.config.train.amp:
                         save_param_dic["scaler"] = scaler.state_dict()
-                        save_param_path = (
-                            self.config.results_dir
-                            + "/CRAFT_clr_amp_"
-                            + repr(train_step)
-                            + ".pth"
-                        )
-                        
+                        save_param_path = f"{self.config.results_dir}/CRAFT_clr_amp_{repr(train_step)}.pth"
+
                     if self.gpu == 0:
                         torch.save(save_param_dic, save_param_path)
 
@@ -316,18 +300,11 @@ class Trainer(object):
                 "craft": craft.state_dict(),
                 "optimizer": optimizer.state_dict(),
             }
-            save_param_path = (
-                self.config.results_dir + "/CRAFT_clr_" + repr(train_step) + ".pth"
-            )
+            save_param_path = f"{self.config.results_dir}/CRAFT_clr_{repr(train_step)}.pth"
 
             if self.config.train.amp:
                 save_param_dic["scaler"] = scaler.state_dict()
-                save_param_path = (
-                    self.config.results_dir
-                    + "/CRAFT_clr_amp_"
-                    + repr(train_step)
-                    + ".pth"
-                )
+                save_param_path = f"{self.config.results_dir}/CRAFT_clr_amp_{repr(train_step)}.pth"
             torch.save(save_param_dic, save_param_path)
 
 
@@ -362,7 +339,7 @@ def main():
 
     # Duplicate yaml file to result_dir
     shutil.copy(
-        "config/" + args.yaml + ".yaml", os.path.join(res_dir, args.yaml) + ".yaml"
+        f"config/{args.yaml}.yaml", f"{os.path.join(res_dir, args.yaml)}.yaml"
     )
 
     ngpus_per_node = torch.cuda.device_count()
@@ -383,7 +360,7 @@ def main_worker(gpu, port, ngpus_per_node, config, buffer_dict, exp_name):
 
     torch.distributed.init_process_group(
         backend="nccl",
-        init_method="tcp://127.0.0.1:" + port,
+        init_method=f"tcp://127.0.0.1:{port}",
         world_size=ngpus_per_node,
         rank=gpu,
     )

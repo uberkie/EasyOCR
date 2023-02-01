@@ -149,20 +149,16 @@ class PseudoCharBoxBuilder:
         cv2.imwrite(
             os.path.join(
                 self.vis_test_dir,
-                "{}_{}".format(
-                    img_name, f"pseudo_char_bbox_{random.randint(0,100)}.jpg"
-                ),
+                f"{img_name}_pseudo_char_bbox_{random.randint(0, 100)}.jpg",
             ),
             vis_result,
         )
 
     def clip_into_boundary(self, box, bound):
-        if len(box) == 0:
-            return box
-        else:
+        if len(box) != 0:
             box[:, :, 0] = np.clip(box[:, :, 0], 0, bound[1])
             box[:, :, 1] = np.clip(box[:, :, 1], 0, bound[0])
-            return box
+        return box
 
     def get_confidence(self, real_len, pseudo_len):
         if pseudo_len == 0:
@@ -183,8 +179,7 @@ class PseudoCharBoxBuilder:
             bbox = np.array([[left, 0], [right, 0], [right, height], [left, height]])
             bboxes.append(bbox)
 
-        bboxes = np.array(bboxes, np.float32)
-        return bboxes
+        return np.array(bboxes, np.float32)
 
     def cal_angle(self, v1):
         theta = np.arccos(min(1, v1[0] / (np.linalg.norm(v1) + 10e-8)))

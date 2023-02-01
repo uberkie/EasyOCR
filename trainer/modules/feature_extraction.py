@@ -109,9 +109,7 @@ class GRCL_unit(nn.Module):
 
         x_first_term = self.BN_fu(wf_u)
         x_second_term = self.BN_Gx(self.BN_rx(wr_x) * G)
-        x = F.relu(x_first_term + x_second_term)
-
-        return x
+        return F.relu(x_first_term + x_second_term)
 
 
 class BasicBlock(nn.Module):
@@ -201,12 +199,9 @@ class ResNet(nn.Module):
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
+        layers = [block(self.inplanes, planes, stride, downsample)]
         self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
-
+        layers.extend(block(self.inplanes, planes) for _ in range(1, blocks))
         return nn.Sequential(*layers)
 
     def forward(self, x):
