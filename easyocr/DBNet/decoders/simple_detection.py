@@ -38,10 +38,10 @@ class SimpleDetectionDecoder(nn.Module):
     def forward(self, input, label, meta, train):
         feature = self.head_layer(input)
 
-        pred = {}
-        for name, pred_layer in self.pred_layers.items():
-            pred[name] = pred_layer(feature)
-
+        pred = {
+            name: pred_layer(feature)
+            for name, pred_layer in self.pred_layers.items()
+        }
         if train:
             losses = self.calculate_losses(pred, label)
             pred = self.postprocess_pred(pred)

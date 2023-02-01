@@ -93,8 +93,7 @@ class AlignCollate(object):
             resized_image = image.resize((resized_w, self.imgH), Image.BICUBIC)
             resized_images.append(transform(resized_image))
 
-        image_tensors = torch.cat([t.unsqueeze(0) for t in resized_images], 0)
-        return image_tensors
+        return torch.cat([t.unsqueeze(0) for t in resized_images], 0)
 
 def recognizer_predict(model, converter, test_loader, batch_max_length,\
                        ignore_idx, char_group_idx, decoder = 'greedy', beamWidth= 5, device = 'cpu'):
@@ -208,7 +207,7 @@ def get_text(character, imgH, imgW, recognizer, converter, image_list,\
 
     # predict second round
     low_confident_idx = [i for i,item in enumerate(result1) if (item[1] < contrast_ths)]
-    if len(low_confident_idx) > 0:
+    if low_confident_idx:
         img_list2 = [img_list[i] for i in low_confident_idx]
         AlignCollate_contrast = AlignCollate(imgH=imgH, imgW=imgW, keep_ratio_with_pad=True, adjust_contrast=adjust_contrast)
         test_data = ListDataset(img_list2)

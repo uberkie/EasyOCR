@@ -139,7 +139,5 @@ class ScaleFeatureSelection(nn.Module):
         if self.type not in ['scale_channel_spatial', 'scale_spatial']:
             shape = features_list[0].shape[2:]
             score = F.interpolate(score, size=shape, mode='bilinear')
-        x = []
-        for i in range(self.out_features_num):
-            x.append(score[:, i:i+1] * features_list[i])
+        x = [score[:, i:i+1] * features_list[i] for i in range(self.out_features_num)]
         return torch.cat(x, dim=1)

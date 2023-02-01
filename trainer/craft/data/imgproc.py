@@ -47,8 +47,7 @@ def denormalizeMeanVariance(
     img *= variance
     img += mean
     img *= 255.0
-    img = np.clip(img, 0, 255).astype(np.uint8)
-    return img
+    return np.clip(img, 0, 255).astype(np.uint8)
 
 
 def resize_aspect_ratio(img, square_size, interpolation, mag_ratio=1):
@@ -66,7 +65,7 @@ def resize_aspect_ratio(img, square_size, interpolation, mag_ratio=1):
     target_h, target_w = int(height * ratio), int(width * ratio)
 
     # NOTE
-    valid_size_heatmap = (int(target_h / 2), int(target_w / 2))
+    valid_size_heatmap = target_h // 2, target_w // 2
 
     proc = cv2.resize(img, (target_w, target_h), interpolation=interpolation)
 

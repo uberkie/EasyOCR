@@ -34,7 +34,7 @@ def save_result_synth(img_file, img, pre_output, pre_box, gt_box=None, result_di
     filename, file_ext = os.path.splitext(os.path.basename(img_file))
 
     # draw bounding boxes for prediction, color green
-    for i, box in enumerate(pre_box):
+    for box in pre_box:
         poly = np.array(box).astype(np.int32).reshape((-1))
         poly = poly.reshape(-1, 2)
         try:
@@ -59,10 +59,10 @@ def save_result_synth(img_file, img, pre_output, pre_box, gt_box=None, result_di
     overlay_img = overlay(img_copy, region, affinity, pre_box)
 
     # Save result image
-    res_img_path = result_dir + "/res_" + filename + ".jpg"
+    res_img_path = f"{result_dir}/res_{filename}.jpg"
     cv2.imwrite(res_img_path, img)
 
-    overlay_image_path = result_dir + "/res_" + filename + "_box.jpg"
+    overlay_image_path = f"{result_dir}/res_{filename}_box.jpg"
     cv2.imwrite(overlay_image_path, overlay_img)
 
 
@@ -76,7 +76,7 @@ def save_result_2015(img_file, img, pre_output, pre_box, gt_box, result_dir):
     # make result file list
     filename, file_ext = os.path.splitext(os.path.basename(img_file))
 
-    for i, box in enumerate(pre_box):
+    for box in pre_box:
         poly = np.array(box).astype(np.int32).reshape((-1))
         poly = poly.reshape(-1, 2)
         try:
@@ -98,10 +98,10 @@ def save_result_2015(img_file, img, pre_output, pre_box, gt_box, result_dir):
     overlay_img = overlay(img_copy, region, affinity, pre_box)
 
     # Save result image
-    res_img_path = result_dir + "/res_" + filename + ".jpg"
+    res_img_path = f"{result_dir}/res_{filename}.jpg"
     cv2.imwrite(res_img_path, img)
 
-    overlay_image_path = result_dir + "/res_" + filename + "_box.jpg"
+    overlay_image_path = f"{result_dir}/res_{filename}_box.jpg"
     cv2.imwrite(overlay_image_path, overlay_img)
 
 
@@ -116,7 +116,7 @@ def save_result_2013(img_file, img, pre_output, pre_box, gt_box=None, result_dir
     filename, file_ext = os.path.splitext(os.path.basename(img_file))
 
     # draw bounding boxes for prediction, color green
-    for i, box in enumerate(pre_box):
+    for box in pre_box:
         poly = np.array(box).astype(np.int32).reshape((-1))
         poly = poly.reshape(-1, 2)
         try:
@@ -141,10 +141,10 @@ def save_result_2013(img_file, img, pre_output, pre_box, gt_box=None, result_dir
     overlay_img = overlay(img_copy, region, affinity, pre_box)
 
     # Save result image
-    res_img_path = result_dir + "/res_" + filename + ".jpg"
+    res_img_path = f"{result_dir}/res_{filename}.jpg"
     cv2.imwrite(res_img_path, img)
 
-    overlay_image_path = result_dir + "/res_" + filename + "_box.jpg"
+    overlay_image_path = f"{result_dir}/res_{filename}_box.jpg"
     cv2.imwrite(overlay_image_path, overlay_img)
 
 
@@ -170,9 +170,7 @@ def overlay(image, region, affinity, single_img_bbox):
 
     temp1 = np.hstack([image, boxed_img])
     temp2 = np.hstack([overlay_region, overlay_aff])
-    temp3 = np.vstack([temp1, temp2])
-
-    return temp3
+    return np.vstack([temp1, temp2])
 
 
 def load_test_dataset_iou(test_folder_name, config):
@@ -185,12 +183,7 @@ def load_test_dataset_iou(test_folder_name, config):
             dataFolder=config.test_data_dir
         )
 
-    elif test_folder_name == "icdar2015":
-        total_bboxes_gt, total_img_path = load_icdar2015_gt(
-            dataFolder=config.test_data_dir
-        )
-
-    elif test_folder_name == "custom_data":
+    elif test_folder_name in ["icdar2015", "custom_data"]:
         total_bboxes_gt, total_img_path = load_icdar2015_gt(
             dataFolder=config.test_data_dir
         )
@@ -212,11 +205,7 @@ def viz_test(img, pre_output, pre_box, gt_box, img_name, result_dir, test_folder
         save_result_2013(
             img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir
         )
-    elif test_folder_name == "icdar2015":
-        save_result_2015(
-            img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir
-        )
-    elif test_folder_name == "custom_data":
+    elif test_folder_name in ["icdar2015", "custom_data"]:
         save_result_2015(
             img_name, img[:, :, ::-1].copy(), pre_output, pre_box, gt_box, result_dir
         )
@@ -247,7 +236,7 @@ def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model
         else:
             raise Exception("Undefined architecture")
 
-        print("Loading weights from checkpoint (" + model_path + ")")
+        print(f"Loading weights from checkpoint ({model_path})")
         net_param = torch.load(model_path, map_location=f"cuda:{gpu_idx}")
         model.load_state_dict(copyStateDict(net_param["craft"]))
 
@@ -255,7 +244,6 @@ def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model
             model = model.cuda()
             cudnn.benchmark = False
 
-    # Distributed evaluation in the middle of training time
     else:
         if buffer is not None:
             # check all buffer value is None for distributed evaluation
@@ -323,7 +311,7 @@ def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model
         total_imgs_bboxes_pre = buffer
 
     results = []
-    for i, (gt, pred) in enumerate(zip(total_imgs_bboxes_gt, total_imgs_bboxes_pre)):
+    for gt, pred in zip(total_imgs_bboxes_gt, total_imgs_bboxes_pre):
         perSampleMetrics_dict = evaluator.evaluate_image(gt, pred)
         results.append(perSampleMetrics_dict)
 
@@ -334,7 +322,7 @@ def main_eval(model_path, backbone, config, evaluator, result_dir, buffer, model
 def cal_eval(config, data, res_dir_name, opt, mode):
     evaluator = DetectionIoUEvaluator()
     test_config = DotDict(config.test[data])
-    res_dir = os.path.join(os.path.join("exp", args.yaml), "{}".format(res_dir_name))
+    res_dir = os.path.join(os.path.join("exp", args.yaml), f"{res_dir_name}")
 
     if opt == "iou_eval":
         main_eval(
@@ -375,7 +363,7 @@ if __name__ == "__main__":
     cal_eval(
         config,
         "custom_data",
-        val_result_dir_name + "-ic15-iou",
+        f"{val_result_dir_name}-ic15-iou",
         opt="iou_eval",
         mode=None,
     )

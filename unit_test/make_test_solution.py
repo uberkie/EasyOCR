@@ -12,11 +12,11 @@ import easyocr
 
 # %%
 def count_parameters(model):
-    return sum([param.numel() for param in model.parameters()])
+    return sum(param.numel() for param in model.parameters())
 
 def get_weight_norm(model):
     with torch.no_grad():
-        return sum([param.norm() for param in model.parameters()]).cpu().item()
+        return sum(param.norm() for param in model.parameters()).cpu().item()
     
 def replace(list_in, indices, values):
     if not isinstance(indices, list):

@@ -200,7 +200,7 @@ class ResNet(nn.Module):
             block, 512, layers[3], stride=2, dcn=dcn)
         self.avgpool = nn.AvgPool2d(7, stride=1)
         self.fc = nn.Linear(512 * block.expansion, num_classes)
-    
+
         self.smooth = nn.Conv2d(2048, 256, kernel_size=1, stride=1, padding=1)    
 
         for m in self.modules():
@@ -212,9 +212,10 @@ class ResNet(nn.Module):
                 m.bias.data.zero_()
         if self.dcn is not None:
             for m in self.modules():
-                if isinstance(m, Bottleneck) or isinstance(m, BasicBlock):
-                    if hasattr(m, 'conv2_offset'):
-                        constant_init(m.conv2_offset, 0)
+                if (isinstance(m, (Bottleneck, BasicBlock))) and hasattr(
+                    m, 'conv2_offset'
+                ):
+                    constant_init(m.conv2_offset, 0)
 
     def _make_layer(self, block, planes, blocks, stride=1, dcn=None):
         downsample = None
@@ -225,13 +226,9 @@ class ResNet(nn.Module):
                 BatchNorm2d(planes * block.expansion),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes,
-                            stride, downsample, dcn=dcn))
+        layers = [block(self.inplanes, planes, stride, downsample, dcn=dcn)]
         self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes, dcn=dcn))
-
+        layers.extend(block(self.inplanes, planes, dcn=dcn) for _ in range(1, blocks))
         return nn.Sequential(*layers)
 
     def forward(self, x):

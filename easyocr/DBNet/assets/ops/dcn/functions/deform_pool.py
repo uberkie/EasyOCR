@@ -25,7 +25,9 @@ warnings.formatwarning = custom_formatwarning
 dcn_dir = os.path.dirname(os.path.dirname(__file__))
 try:
     from .. import deform_pool_cpu
-    warnings.warn("Using precompiled deform_pool_cpu from {}".format(deform_pool_cpu.__file__))
+    warnings.warn(
+        f"Using precompiled deform_pool_cpu from {deform_pool_cpu.__file__}"
+    )
     dcn_cpu_ready = True
 except:
     try:
@@ -38,17 +40,23 @@ except:
         warnings.warn("Done.")
         dcn_cpu_ready = True
     except Exception as error:
-        warnings.warn(' '.join([
-            "Failed to import or compile 'deform_pool_cpu' with the following error",
-            "{}".format(error),
-            "Deformable convulution and DBNet will not be able to run on CPU."
-            ]))
+        warnings.warn(
+            ' '.join(
+                [
+                    "Failed to import or compile 'deform_pool_cpu' with the following error",
+                    f"{error}",
+                    "Deformable convulution and DBNet will not be able to run on CPU.",
+                ]
+            )
+        )
         dcn_cpu_ready = False
 
 if torch.cuda.is_available():
     try:
         from .. import deform_pool_cuda
-        warnings.warn("Using precompiled deform_pool_cuda from {}".format(deform_pool_cuda.__file__))
+        warnings.warn(
+            f"Using precompiled deform_pool_cuda from {deform_pool_cuda.__file__}"
+        )
         dcn_cuda_ready = True
     except:
         try:
@@ -61,11 +69,15 @@ if torch.cuda.is_available():
             warnings.warn("Done.")
             dcn_cuda_ready = True
         except Exception as error:
-            warnings.warn(' '.join([
-                "Failed to import or compile 'deform_pool_cuda' with the following error",
-                "{}".format(error),
-                "Deformable convulution and DBNet will not be able to run on GPU."
-                ]))
+            warnings.warn(
+                ' '.join(
+                    [
+                        "Failed to import or compile 'deform_pool_cuda' with the following error",
+                        f"{error}",
+                        "Deformable convulution and DBNet will not be able to run on GPU.",
+                    ]
+                )
+            )
             dcn_cuda_ready = False
 
 class DeformRoIPoolingFunction(Function):
@@ -93,7 +105,7 @@ class DeformRoIPoolingFunction(Function):
         ctx.trans_std = trans_std
 
         assert 0.0 <= ctx.trans_std <= 1.0
-        
+
         n = rois.shape[0]
         output = data.new_empty(n, out_channels, out_size, out_size)
         output_count = data.new_empty(n, out_channels, out_size, out_size)
@@ -110,9 +122,9 @@ class DeformRoIPoolingFunction(Function):
         else:
             device_ = input.device.type
             raise RuntimeError(
-                "Input type is {}, but 'deform_conv_{}.*.so' is not imported successfully.".format(device_, device_),
-                )
-        
+                f"Input type is {device_}, but 'deform_conv_{device_}.*.so' is not imported successfully."
+            )
+
         if data.requires_grad or rois.requires_grad or offset.requires_grad:
             ctx.save_for_backward(data, rois, offset)
         ctx.output_count = output_count

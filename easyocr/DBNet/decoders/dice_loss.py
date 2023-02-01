@@ -124,9 +124,7 @@ class InstanceDiceLoss(DiceLoss):
     def replace_or_add(self, dest, value):
         if dest is None:
             return value
-        if value is None:
-            return dest
-        return dest + value
+        return dest if value is None else dest + value
 
     def forward(self, pred, gt, mask):
         # pred_label_maps: N, P, H, W, where P is the number of regions.
@@ -175,12 +173,12 @@ class InstanceDiceLoss(DiceLoss):
             if single_loss is not None:
                 losses.append(single_loss)
 
-        if self.reduction == 'none':
-            loss = losses
+        if self.reduction == 'mean':
+            assert self.reduction in ['sum', 'mean']
+            return sum(losses) / len(losses)
+        elif self.reduction == 'none':
+            return losses
         else:
             assert self.reduction in ['sum', 'mean']
             count = len(losses)
-            loss = sum(losses)
-            if self.reduction == 'mean':
-                loss = loss / count
-        return loss
+            return sum(losses)

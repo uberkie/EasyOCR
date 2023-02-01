@@ -26,7 +26,9 @@ warnings.formatwarning = custom_formatwarning
 dcn_dir = os.path.dirname(os.path.dirname(__file__))
 try:
     from .. import deform_conv_cpu
-    warnings.warn("Using precompiled deform_conv_cpu from {}".format(deform_conv_cpu.__file__))
+    warnings.warn(
+        f"Using precompiled deform_conv_cpu from {deform_conv_cpu.__file__}"
+    )
     dcn_cpu_ready = True
 except:
     try:
@@ -39,17 +41,23 @@ except:
         warnings.warn("Done.")
         dcn_cpu_ready = True
     except Exception as error:
-        warnings.warn(' '.join([
-            "Failed to import and/or compile 'deform_conv_cpu' with the following error",
-            "{}".format(error),
-            "Deformable convulution and DBNet will not be able to run on CPU."
-            ]))
+        warnings.warn(
+            ' '.join(
+                [
+                    "Failed to import and/or compile 'deform_conv_cpu' with the following error",
+                    f"{error}",
+                    "Deformable convulution and DBNet will not be able to run on CPU.",
+                ]
+            )
+        )
         dcn_cpu_ready = False
 
 if torch.cuda.is_available():
     try:
         from .. import deform_conv_cuda
-        warnings.warn("Using precompiled deform_conv_cuda from {}".format(deform_conv_cuda.__file__))
+        warnings.warn(
+            f"Using precompiled deform_conv_cuda from {deform_conv_cuda.__file__}"
+        )
         dcn_cuda_ready = True
     except:
         try:
@@ -66,11 +74,15 @@ if torch.cuda.is_available():
             warnings.warn("Done.")
             dcn_cuda_ready = True
         except Exception as error:
-            warnings.warn(' '.join([
-                "Failed to import or compile 'deform_conv_cuda' with the following error",
-                "{}".format(error),
-                "Deformable convulution and DBNet will not be able to run on GPU."
-                ]))
+            warnings.warn(
+                ' '.join(
+                    [
+                        "Failed to import or compile 'deform_conv_cuda' with the following error",
+                        f"{error}",
+                        "Deformable convulution and DBNet will not be able to run on GPU.",
+                    ]
+                )
+            )
             dcn_cuda_ready = False
 
 class DeformConvFunction(Function):
@@ -88,8 +100,8 @@ class DeformConvFunction(Function):
                 im2col_step=64):
         if input is not None and input.dim() != 4:
             raise ValueError(
-                "Expected 4D tensor as input, got {}D tensor instead.".format(
-                    input.dim()))
+                f"Expected 4D tensor as input, got {input.dim()}D tensor instead."
+            )
         ctx.stride = _pair(stride)
         ctx.padding = _pair(padding)
         ctx.dilation = _pair(dilation)
@@ -125,9 +137,9 @@ class DeformConvFunction(Function):
         else:
             device_ = input.device.type
             raise RuntimeError(
-                "Input type is {}, but 'deform_conv_{}.*.so' is not imported successfully.".format(device_, device_),
-                )
-             
+                f"Input type is {device_}, but 'deform_conv_{device_}.*.so' is not imported successfully."
+            )
+
         return output
 
     @staticmethod
@@ -138,31 +150,30 @@ class DeformConvFunction(Function):
 
         if not grad_output.is_cuda:
             raise NotImplementedError("DCN operator for cpu for backward propagation is not implemented.")
-        else:
-            cur_im2col_step = min(ctx.im2col_step, input.shape[0])
-            assert (input.shape[0] %
-                    cur_im2col_step) == 0, 'im2col step must divide batchsize'
+        cur_im2col_step = min(ctx.im2col_step, input.shape[0])
+        assert (input.shape[0] %
+                cur_im2col_step) == 0, 'im2col step must divide batchsize'
 
-            if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
-                grad_input = torch.zeros_like(input)
-                grad_offset = torch.zeros_like(offset)
-                deform_conv_cuda.deform_conv_backward_input_cuda(
-                    input, offset, grad_output, grad_input,
-                    grad_offset, weight, ctx.bufs_[0], weight.size(3),
-                    weight.size(2), ctx.stride[1], ctx.stride[0],
-                    ctx.padding[1], ctx.padding[0], ctx.dilation[1],
-                    ctx.dilation[0], ctx.groups, ctx.deformable_groups,
-                    cur_im2col_step)
+        if ctx.needs_input_grad[0] or ctx.needs_input_grad[1]:
+            grad_input = torch.zeros_like(input)
+            grad_offset = torch.zeros_like(offset)
+            deform_conv_cuda.deform_conv_backward_input_cuda(
+                input, offset, grad_output, grad_input,
+                grad_offset, weight, ctx.bufs_[0], weight.size(3),
+                weight.size(2), ctx.stride[1], ctx.stride[0],
+                ctx.padding[1], ctx.padding[0], ctx.dilation[1],
+                ctx.dilation[0], ctx.groups, ctx.deformable_groups,
+                cur_im2col_step)
 
-            if ctx.needs_input_grad[2]:
-                grad_weight = torch.zeros_like(weight)
-                deform_conv_cuda.deform_conv_backward_parameters_cuda(
-                    input, offset, grad_output,
-                    grad_weight, ctx.bufs_[0], ctx.bufs_[1], weight.size(3),
-                    weight.size(2), ctx.stride[1], ctx.stride[0],
-                    ctx.padding[1], ctx.padding[0], ctx.dilation[1],
-                    ctx.dilation[0], ctx.groups, ctx.deformable_groups, 1,
-                    cur_im2col_step)
+        if ctx.needs_input_grad[2]:
+            grad_weight = torch.zeros_like(weight)
+            deform_conv_cuda.deform_conv_backward_parameters_cuda(
+                input, offset, grad_output,
+                grad_weight, ctx.bufs_[0], ctx.bufs_[1], weight.size(3),
+                weight.size(2), ctx.stride[1], ctx.stride[0],
+                ctx.padding[1], ctx.padding[0], ctx.dilation[1],
+                ctx.dilation[0], ctx.groups, ctx.deformable_groups, 1,
+                cur_im2col_step)
 
         return (grad_input, grad_offset, grad_weight, None, None, None, None,
                 None)
@@ -179,8 +190,8 @@ class DeformConvFunction(Function):
             output_size += ((in_size + (2 * pad) - kernel) // stride_ + 1, )
         if not all(map(lambda s: s > 0, output_size)):
             raise ValueError(
-                "convolution input is too small (output would be {})".format(
-                    'x'.join(map(str, output_size))))
+                f"convolution input is too small (output would be {'x'.join(map(str, output_size))})"
+            )
         return output_size
 
 
@@ -206,9 +217,9 @@ class ModulatedDeformConvFunction(Function):
         ctx.with_bias = bias is not None
         if not ctx.with_bias:
             bias = input.new_empty(1)  # fake tensor
-        
+
         if weight.requires_grad or mask.requires_grad or offset.requires_grad \
-                or input.requires_grad:
+                    or input.requires_grad:
             ctx.save_for_backward(input, offset, mask, weight, bias)
         output = input.new_empty(
             ModulatedDeformConvFunction._infer_shape(ctx, input, weight))
@@ -228,8 +239,8 @@ class ModulatedDeformConvFunction(Function):
         else:
             device_ = input.device.type
             raise RuntimeError(
-                "Input type is {}, but 'deform_conv_{}.*.so' is not imported successfully.".format(device_, device_),
-                )
+                f"Input type is {device_}, but 'deform_conv_{device_}.*.so' is not imported successfully."
+            )
         return output
 
     @staticmethod

@@ -22,10 +22,12 @@ def print_error(errors, log_path):
         fid.write("Failed to compile dcn operator for DBNet with the following error.\n".encode('utf-8'))
         fid.write(("#"*42 + '\n').encode('utf-8'))
         [fid.write(error) for error in errors]
-    print("Error message can be found in {}.".format(os.path.abspath(log_path)))
+    print(f"Error message can be found in {os.path.abspath(log_path)}.")
     print("#"*42)
     print("EasyOCR can still be used with CRAFT text detector (default).")
-    print("To use DBNet text detector, please check {} for troubleshoot and compile dcn operator manually.".format(url))
+    print(
+        f"To use DBNet text detector, please check {url} for troubleshoot and compile dcn operator manually."
+    )
 
 def print_success(text, log_path):
     with open(log_path, "wb") as fid:
@@ -35,17 +37,17 @@ def print_success(text, log_path):
 
 def validate_compilation(parent_dir, log_path, cpu_or_cuda):
     dcn_dir = os.path.join(parent_dir, 'DBNet', 'assets', 'ops', 'dcn')
-    #Just to be safe, check explicitly.    
+    #Just to be safe, check explicitly.
     if cpu_or_cuda == 'cpu':  
         conv_cpu_exist = glob.glob(os.path.join(dcn_dir, 'deform_conv_cpu.*.so'))
         pool_cpu_exist = glob.glob(os.path.join(dcn_dir, 'deform_pool_cpu.*.so'))
-        success_message = "DCN CPU operator is compiled successfully at {}.".format(os.path.abspath(os.path.join(parent_dir,'DBNet')))
+        success_message = f"DCN CPU operator is compiled successfully at {os.path.abspath(os.path.join(parent_dir, 'DBNet'))}."
         print_success(success_message, log_path)
-        return conv_cpu_exist and pool_cpu_exist  
+        return conv_cpu_exist and pool_cpu_exist
     elif cpu_or_cuda == 'cuda':
         conv_cuda_exist = glob.glob(os.path.join(dcn_dir, 'deform_conv_cuda.*.so'))
         pool_cuda_exist = glob.glob(os.path.join(dcn_dir, 'deform_pool_cuda.*.so'))
-        success_message = "DCN CUDA operator is compiled successfully at {}.".format(os.path.abspath(os.path.join(parent_dir,'DBNet')))
+        success_message = f"DCN CUDA operator is compiled successfully at {os.path.abspath(os.path.join(parent_dir, 'DBNet'))}."
         print_success(success_message, log_path)
         return conv_cuda_exist and pool_cuda_exist
     else:
@@ -75,7 +77,7 @@ def main():
             print(result.__dict__)
             print_error([result.stdout, result.stderr], log_path)
     except Exception as error:
-        print_error("{}".format(error), log_path)
+        print_error(f"{error}", log_path)
     finally:
         os.chdir(cwd)
 

@@ -19,14 +19,16 @@ def export_detector(detector_onnx_save_path,
                     recognizer=True):
     if dynamic is False:
         print('WARNING: it is recommended to use -d dynamic flag when exporting onnx')
-    ocr_reader = easyocr.Reader(lang_list,
-                                gpu=False if device == "cpu" else True,
-                                detector=detector,
-                                recognizer=detector,
-                                quantize=quantize,
-                                model_storage_directory=model_storage_directory,
-                                user_network_directory=user_network_directory,
-                                download_enabled=download_enabled)
+    ocr_reader = easyocr.Reader(
+        lang_list,
+        gpu=device != "cpu",
+        detector=detector,
+        recognizer=detector,
+        quantize=quantize,
+        model_storage_directory=model_storage_directory,
+        user_network_directory=user_network_directory,
+        download_enabled=download_enabled,
+    )
 
     # exporting detector if selected
     if detector:
@@ -109,7 +111,8 @@ def parse_args():
     args.detector_onnx_save_path = None if dpath == "None" else dpath
     if len(args.in_shape) != 4:
         raise ValueError(
-            f"Input shape must have four values (bsize, channel, height, width) eg. 1 3 608 800")
+            "Input shape must have four values (bsize, channel, height, width) eg. 1 3 608 800"
+        )
     return args
 
 

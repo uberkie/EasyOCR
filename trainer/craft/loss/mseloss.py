@@ -7,11 +7,13 @@ class Loss(nn.Module):
         super(Loss, self).__init__()
 
     def forward(self, gt_region, gt_affinity, pred_region, pred_affinity, conf_map):
-        loss = torch.mean(
-            ((gt_region - pred_region).pow(2) + (gt_affinity - pred_affinity).pow(2))
+        return torch.mean(
+            (
+                (gt_region - pred_region).pow(2)
+                + (gt_affinity - pred_affinity).pow(2)
+            )
             * conf_map
         )
-        return loss
 
 
 class Maploss_v2(nn.Module):
@@ -62,8 +64,7 @@ class Maploss_v2(nn.Module):
                 / n_min_neg
             )
             positive_loss = 0.0
-        total_loss = positive_loss + negative_loss
-        return total_loss
+        return positive_loss + negative_loss
 
     def forward(
         self,
@@ -118,28 +119,25 @@ class Maploss_v3(nn.Module):
             n_neg_pixel = torch.sum(neg_pixel)
             neg_loss_region = single_loss * neg_pixel
 
-            if n_pos_pixel != 0:
-                if n_neg_pixel < neg_rto * n_pos_pixel:
-                    negative_loss += torch.sum(neg_loss_region) / n_neg_pixel
-                else:
-                    n_hard_neg = max(n_min_neg, neg_rto * n_pos_pixel)
-                    # n_hard_neg = neg_rto*n_pos_pixel
-                    negative_loss += (
-                        torch.sum(
-                            torch.topk(neg_loss_region.view(-1), int(n_hard_neg))[0]
-                        )
-                        / n_hard_neg
-                    )
-            else:
+            if n_pos_pixel == 0:
                 # only negative pixel
                 negative_loss += (
                     torch.sum(torch.topk(neg_loss_region.view(-1), n_min_neg)[0])
                     / n_min_neg
                 )
 
-        total_loss = (positive_loss + negative_loss) / batch_size
-
-        return total_loss
+            elif n_neg_pixel < neg_rto * n_pos_pixel:
+                negative_loss += torch.sum(neg_loss_region) / n_neg_pixel
+            else:
+                n_hard_neg = max(n_min_neg, neg_rto * n_pos_pixel)
+                # n_hard_neg = neg_rto*n_pos_pixel
+                negative_loss += (
+                    torch.sum(
+                        torch.topk(neg_loss_region.view(-1), int(n_hard_neg))[0]
+                    )
+                    / n_hard_neg
+                )
+        return (positive_loss + negative_loss) / batch_size
 
     def forward(
         self,

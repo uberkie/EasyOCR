@@ -8,7 +8,7 @@ class State:
 
 
 class StateMeta(type):
-    def __new__(mcs, name, bases, attrs):
+    def __new__(cls, name, bases, attrs):
         current_states = []
         for key, value in attrs.items():
             if isinstance(value, State):
@@ -16,7 +16,7 @@ class StateMeta(type):
 
         current_states.sort(key=lambda x: x[0])
         attrs['states'] = OrderedDict(current_states)
-        new_class = super(StateMeta, mcs).__new__(mcs, name, bases, attrs)
+        new_class = super(StateMeta, cls).__new__(cls, name, bases, attrs)
 
         # Walk through the MRO
         states = OrderedDict()
@@ -56,7 +56,7 @@ class Configurable(metaclass=StateMeta):
     def load(self, state_name, **kwargs):
         # FIXME: kwargs should be filtered
         # Args passed from command line
-        cmd = kwargs.pop('cmd', dict())
+        cmd = kwargs.pop('cmd', {})
         if state_name in kwargs:
             setattr(self, state_name, self.create_member_from_config(
                 (kwargs[state_name], cmd)))
@@ -78,9 +78,9 @@ class Configurable(metaclass=StateMeta):
             return args
 
     def dump(self):
-        state = {}
-        state['class'] = self.__class__.__module__ + \
-            '.' + self.__class__.__name__
+        state = {
+            'class': (self.__class__.__module__ + '.' + self.__class__.__name__)
+        }
         for name, value in self.states.items():
             obj = getattr(self, name)
             state[name] = self.dump_obj(obj)

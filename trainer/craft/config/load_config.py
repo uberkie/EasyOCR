@@ -6,7 +6,7 @@ CONFIG_PATH = os.path.dirname(__file__)
 
 def load_yaml(config_name):
 
-    with open(os.path.join(CONFIG_PATH, config_name)+ '.yaml') as file:
+    with open(f'{os.path.join(CONFIG_PATH, config_name)}.yaml') as file:
         config = yaml.safe_load(file)
 
     return config
@@ -17,9 +17,7 @@ class DotDict(dict):
             v = self[k]
         except:
             return super().__getattr__(k)
-        if isinstance(v, dict):
-            return DotDict(v)
-        return v
+        return DotDict(v) if isinstance(v, dict) else v
 
     def __getitem__(self, k):
         if isinstance(k, str) and '.' in k:

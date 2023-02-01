@@ -122,15 +122,15 @@ class AdaptiveInstanceDiceLoss(nn.Module):
         thresh_instance_loss = self.thresh_instance_loss(
             pred['thresh_binary'], batch['gt'], batch['mask'])
         loss = self.partial_loss(self.weights['main'], main_loss) \
-               + self.partial_loss(self.weights['thresh'], thresh_loss) \
-               + self.partial_loss(self.weights['main_instance'], main_instance_loss) \
-               + self.partial_loss(self.weights['thresh_instance'], thresh_instance_loss)
+                   + self.partial_loss(self.weights['thresh'], thresh_loss) \
+                   + self.partial_loss(self.weights['main_instance'], main_instance_loss) \
+                   + self.partial_loss(self.weights['thresh_instance'], thresh_instance_loss)
         metrics = dict(
             main_loss=main_loss,
             thresh_loss=thresh_loss,
             main_instance_loss=main_instance_loss,
             thresh_instance_loss=thresh_instance_loss)
-        metrics.update(self.weights)
+        metrics |= self.weights
         return loss, metrics
 
 

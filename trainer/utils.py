@@ -28,7 +28,7 @@ class BeamState:
         "length-normalise LM score"
         for (k, _) in self.entries.items():
             labelingLen = len(self.entries[k].labeling)
-            self.entries[k].prText = self.entries[k].prText ** (1.0 / (labelingLen if labelingLen else 1.0))
+            self.entries[k].prText = self.entries[k].prText**(1.0 / (labelingLen or 1.0))
 
     def sort(self):
         "return beam-labelings, sorted by probability"
@@ -42,11 +42,12 @@ class BeamState:
 
         for j, candidate in enumerate(sortedBeams):
             idx_list = candidate.labeling
-            text = ''
-            for i,l in enumerate(idx_list):
-                if l not in ignore_idx and (not (i > 0 and idx_list[i - 1] == idx_list[i])):  # removing repeated characters and blank.
-                    text += classes[l]
-
+            text = ''.join(
+                classes[l]
+                for i, l in enumerate(idx_list)
+                if l not in ignore_idx
+                and (i <= 0 or idx_list[i - 1] != idx_list[i])
+            )
             if j == 0: best_text = text
             if text in dict_list:
                 print('found text: ', text)
@@ -90,7 +91,7 @@ def ctcBeamSearch(mat, classes, ignore_idx, lm, beamWidth=25, dict_list = []):
         curr = BeamState()
 
         # get beam-labelings of best beams
-        bestLabelings = last.sort()[0:beamWidth]
+        bestLabelings = last.sort()[:beamWidth]
 
         # go over best beams
         for labeling in bestLabelings:
@@ -144,25 +145,16 @@ def ctcBeamSearch(mat, classes, ignore_idx, lm, beamWidth=25, dict_list = []):
     # normalise LM scores according to beam-labeling-length
     last.norm()
 
-    # sort by probability
-    #bestLabeling = last.sort()[0] # get most probable labeling
+    if dict_list != []:
+        return last.wordsearch(classes, ignore_idx, beamWidth, dict_list)
 
-    # map labels to chars
-    #res = ''
-    #for idx,l in enumerate(bestLabeling):
-    #    if l not in ignore_idx and (not (idx > 0 and bestLabeling[idx - 1] == bestLabeling[idx])):  # removing repeated characters and blank.
-    #        res += classes[l]
-
-    if dict_list == []:
-        bestLabeling = last.sort()[0] # get most probable labeling
-        res = ''
-        for i,l in enumerate(bestLabeling):
-            if l not in ignore_idx and (not (i > 0 and bestLabeling[i - 1] == bestLabeling[i])):  # removing repeated characters and blank.
-                res += classes[l]
-    else:
-        res = last.wordsearch(classes, ignore_idx, beamWidth, dict_list)
-
-    return res
+    bestLabeling = last.sort()[0] # get most probable labeling
+    return ''.join(
+        classes[l]
+        for i, l in enumerate(bestLabeling)
+        if l not in ignore_idx
+        and (i <= 0 or bestLabeling[i - 1] != bestLabeling[i])
+    )
 #####
 
 def consecutive(data, mode ='first', stepsize=1):
@@ -178,8 +170,7 @@ def word_segmentation(mat, separator_idx =  {'th': [1,2],'en': [3,4]}, separator
     sep_list = []
     start_idx = 0
     for sep_idx in separator_idx_list:
-        if sep_idx % 2 == 0: mode ='first'
-        else: mode ='last'
+        mode = 'first' if sep_idx % 2 == 0 else 'last'
         a = consecutive( np.argwhere(mat == sep_idx).flatten(), mode)
         new_sep = [ [item, sep_idx] for item in a]
         sep_list += new_sep
@@ -261,11 +252,11 @@ class CTCLabelConverter(object):
         for l in length:
             t = text_index[index:index + l]
 
-            char_list = []
-            for i in range(l):
-                if t[i] not in self.ignore_idx and (not (i > 0 and t[i - 1] == t[i])):  # removing repeated characters and blank (and separator).
-                #if (t[i] != 0) and (not (i > 0 and t[i - 1] == t[i])):  # removing repeated characters and blank (and separator).
-                    char_list.append(self.character[t[i]])
+            char_list = [
+                self.character[t[i]]
+                for i in range(l)
+                if t[i] not in self.ignore_idx and (i <= 0 or t[i - 1] != t[i])
+            ]
             text = ''.join(char_list)
 
             texts.append(text)
@@ -288,8 +279,7 @@ class CTCLabelConverter(object):
             string = ''
             for word in words:
                 matrix = mat[i, word[1][0]:word[1][1]+1,:]
-                if word[0] == '': dict_list = []
-                else: dict_list = self.dict_list[word[0]]
+                dict_list = [] if word[0] == '' else self.dict_list[word[0]]
                 t = ctcBeamSearch(matrix, self.character, self.ignore_idx, None, beamWidth=beamWidth, dict_list=dict_list)
                 string += t
             texts.append(string)
@@ -335,11 +325,10 @@ class AttnLabelConverter(object):
 
     def decode(self, text_index, length):
         """ convert text-index into text-label. """
-        texts = []
-        for index, l in enumerate(length):
-            text = ''.join([self.character[i] for i in text_index[index, :]])
-            texts.append(text)
-        return texts
+        return [
+            ''.join([self.character[i] for i in text_index[index, :]])
+            for index, l in enumerate(length)
+        ]
 
 
 class Averager(object):
@@ -359,7 +348,4 @@ class Averager(object):
         self.sum = 0
 
     def val(self):
-        res = 0
-        if self.n_count != 0:
-            res = self.sum / float(self.n_count)
-        return res
+        return self.sum / float(self.n_count) if self.n_count != 0 else 0
